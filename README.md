@@ -59,10 +59,25 @@ Branches: `master` = live, `develop` = beta (inputs `live-branch`/`beta-branch` 
 
 | Input | Default | |
 |---|---|---|
+| `runs-on` | `'"ubuntu-latest"'` | runner as JSON, e.g. `'["self-hosted","senior-ci"]'` |
+| `timeout-minutes` | `20` | |
 | `php-version` | — (required) | same as production |
 | `php-extensions` | `intl, pdo_mysql, zip` | |
 | `mysql-version` | `''` | e.g. `8.4` starts a MySQL service and sets `DATABASE_URL` |
 | `beta-branch` / `live-branch` | `develop` / `master` | |
+
+## Self-hosted runner
+
+Private repositories pay for GitHub-hosted minutes. The template therefore targets a self-hosted runner with the labels
+`self-hosted, senior-ci` and lets the repository variable `CI_RUNS_ON` switch back (`"ubuntu-latest"`, as JSON string).
+The workflow adapts to the runner:
+
+- `setup-php` gets `runner: self-hosted`, so it uses the PHP versions installed on the runner.
+- No Docker is assumed: instead of the MySQL service, the runner provides `CI_DATABASE_HOST`, `CI_DATABASE_USER`,
+  `CI_DATABASE_PASSWORD` (and optionally `CI_DATABASE_VERSION`); each run gets its own database
+  `ci_<repo>_<run id>_<attempt>`. The runner is responsible for dropping leftovers.
+
+Never use a self-hosted runner for a public repository: anyone could run code on it through a pull request.
 
 ## Versioning
 

@@ -22,6 +22,9 @@ jobs:
   ci:
     uses: jostkleigrewe/symfony-standards/.github/workflows/symfony-ci.yml@v1
     with:
+      # Central self-hosted runner (see README "Self-hosted runner"). Repository variable CI_RUNS_ON = "ubuntu-latest"
+      # switches to GitHub-hosted runners. Without a central runner use: runs-on: '"ubuntu-latest"'
+      runs-on: ${{ vars.CI_RUNS_ON || '["self-hosted","senior-ci"]' }}
       php-version: '8.4'
       # mysql-version: '8.4'   # start a MySQL service for tests (DATABASE_URL is set automatically)
     secrets:

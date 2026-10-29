@@ -5,6 +5,13 @@ name: Symfony CI
 on:
   workflow_call:
     inputs:
+      runs-on:
+        description: 'Runner as JSON: "ubuntu-latest" (GitHub) or ["self-hosted","senior-ci"] (central runner, see README)'
+        type: string
+        default: '"ubuntu-latest"'
+      timeout-minutes:
+        type: number
+        default: 20
       php-version:
         description: PHP version, same as production (e.g. "8.4")
         type: string
@@ -14,7 +21,7 @@ on:
         type: string
         default: intl, pdo_mysql, zip
       mysql-version:
-        description: Start a MySQL service of this version and set DATABASE_URL ("" = no database)
+        description: Start a MySQL service of this version and set DATABASE_URL ("" = no database). Self-hosted runners use their CI database instead.
         type: string
         default: ''
       beta-branch:
@@ -35,11 +42,13 @@ permissions:
 jobs:
   checks:
     name: Checks
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     services:
       mysql:
         # An empty image means the service does not start (GitHub Actions workflow syntax).
-        image: ${{ inputs.mysql-version != '' && format('mysql:{0}', inputs.mysql-version) || '' }}
+        # Self-hosted runners have no Docker; they provide CI_DATABASE_* instead.
+        image: ${{ inputs.mysql-version != '' && !contains(inputs.runs-on, 'self-hosted') && format('mysql:{0}', inputs.mysql-version) || '' }}
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: app
@@ -50,6 +59,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
+        env:
+          runner: ${{ runner.environment == 'self-hosted' && 'self-hosted' || 'github' }}
         with:
           php-version: ${{ inputs.php-version }}
           extensions: ${{ inputs.php-extensions }}
@@ -58,7 +69,18 @@ jobs:
 
       - name: Database URL
         if: inputs.mysql-version != ''
-        run: echo "DATABASE_URL=mysql://root:root@127.0.0.1:3306/app?serverVersion=${{ inputs.mysql-version }}&charset=utf8mb4" >> "$GITHUB_ENV"
+        env:
+          MYSQL_VERSION: ${{ inputs.mysql-version }}
+        run: |
+          if [ "$RUNNER_ENVIRONMENT" = "self-hosted" ] && [ -n "${CI_DATABASE_HOST:-}" ]; then
+            # One database per run on the runner's CI database server (user may only use ci_*; max. 64 characters).
+            short="$(basename "$GITHUB_REPOSITORY" | tr -c 'a-zA-Z0-9\n' '_' | cut -c1-20)"
+            db="ci_${short}_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+            echo "DATABASE_URL=mysql://$CI_DATABASE_USER:$CI_DATABASE_PASSWORD@$CI_DATABASE_HOST:3306/$db?serverVersion=${CI_DATABASE_VERSION:-$MYSQL_VERSION}&charset=utf8mb4" >> "$GITHUB_ENV"
+            echo "::add-mask::$CI_DATABASE_PASSWORD"
+          else
+            echo "DATABASE_URL=mysql://root:root@127.0.0.1:3306/app?serverVersion=$MYSQL_VERSION&charset=utf8mb4" >> "$GITHUB_ENV"
+          fi
 
       - name: Composer cache
         uses: actions/cache@v6
