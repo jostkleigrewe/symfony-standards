@@ -36,12 +36,14 @@ on:
       deploy-webhook-live:
         required: false
 
-permissions:
-  contents: read
+# No workflow-level permissions: a called workflow may only lower the caller's token rights, and a job asking for more
+# than the caller grants fails the whole run at startup. The checks lower to read; the deploy job keeps the caller's.
 
 jobs:
   checks:
     name: Checks
+    permissions:
+      contents: read
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     services:
@@ -105,15 +107,39 @@ jobs:
     # (coole-hufe, 2026-10-29: green checks, deploy job never started).
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     timeout-minutes: 5
+    # Inherits the caller's token. With `deployments: write` granted in ci.yml the job records a GitHub deployment per
+    # environment (beta/live) — the rolled-out commit becomes visible on GitHub and in the hub. Without it: a warning.
     steps:
       - name: Trigger deploy webhook
         env:
           WEBHOOK: ${{ github.ref_name == inputs.live-branch && secrets.deploy-webhook-live || secrets.deploy-webhook-beta }}
           TARGET: ${{ github.ref_name == inputs.live-branch && 'live' || 'beta' }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ -z "$WEBHOOK" ]; then
             echo "::notice title=Deploy::No $TARGET webhook secret set — nothing deployed."
             exit 0
           fi
-          curl --fail-with-body --silent --show-error --max-time 60 --retry 2 -X POST "$WEBHOOK"
+          api() {
+            curl --silent --show-error --max-time 30 -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" "$@"
+          }
+          repo_api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY"
+          deployment_id="$(api -X POST "$repo_api/deployments" -d "$(jq -n --arg ref "$GITHUB_SHA" --arg env "$TARGET" \
+            '{ref: $ref, environment: $env, auto_merge: false, required_contexts: [], description: "Deploy webhook after green CI"}')" \
+            | jq -r '.id // empty' || true)"
+          if [ -z "$deployment_id" ]; then
+            echo "::warning title=Deploy::GitHub deployment not recorded — grant 'deployments: write' in ci.yml"
+          fi
+          state=success
+          curl --fail-with-body --silent --show-error --max-time 60 --retry 2 -X POST "$WEBHOOK" || state=failure
+          if [ -n "$deployment_id" ]; then
+            api -X POST "$repo_api/deployments/$deployment_id/statuses" -d "$(jq -n --arg state "$state" \
+              --arg url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+              '{state: $state, log_url: $url, description: "Hosting webhook called"}')" >/dev/null || true
+          fi
+          if [ "$state" != success ]; then
+            echo "::error title=Deploy::$TARGET webhook failed"
+            exit 1
+          fi
           echo "::notice title=Deploy::$TARGET deploy triggered for ${GITHUB_SHA::7}"
