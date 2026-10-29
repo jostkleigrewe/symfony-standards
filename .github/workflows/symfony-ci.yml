@@ -47,7 +47,7 @@ jobs:
           - 3306:3306
         options: --health-cmd="mysqladmin ping -proot" --health-interval=5s --health-timeout=5s --health-retries=20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -61,7 +61,7 @@ jobs:
         run: echo "DATABASE_URL=mysql://root:root@127.0.0.1:3306/app?serverVersion=${{ inputs.mysql-version }}&charset=utf8mb4" >> "$GITHUB_ENV"
 
       - name: Composer cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/composer
           key: composer-${{ inputs.php-version }}-${{ hashFiles('composer.lock') }}

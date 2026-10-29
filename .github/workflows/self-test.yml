@@ -15,7 +15,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: shellcheck
         run: shellcheck --shell=bash bin/symfony-standards templates/deploy/post-deploy.sh templates/deploy/deploy.env
       - name: actionlint
@@ -32,7 +32,7 @@ jobs:
           - php: '8.5'
             symfony: '8.1.*'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           path: package
       - uses: shivammathur/setup-php@v2
