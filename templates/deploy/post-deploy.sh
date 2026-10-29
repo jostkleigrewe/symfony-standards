@@ -18,6 +18,11 @@ PHP_BIN="php"
 COMPOSER_BIN="composer"
 PHP_MEMORY_LIMIT="512M"
 REQUIRED_VARS=(APP_SECRET)
+DEPLOY_LOG="var/log/deploy.log"   # where the hosting action appends this script's output (see README)
+DEPLOY_LOG_KEEP_LINES=5000
+WORKER_STOP_CMD=""                # e.g. supervisorctl stop — runs before the migrations
+WORKER_START_CMD=""               # e.g. supervisorctl restart — runs at the end, also when the deploy fails
+FPM_RELOAD_CMD=""                 # e.g. systemctl reload <php-fpm> — clears the OPcache after new vendor code
 # shellcheck source=/dev/null
 [[ -f deploy/deploy.env ]] && source deploy/deploy.env
 
@@ -26,6 +31,13 @@ REQUIRED_VARS=(APP_SECRET)
 console() { "$PHP_BIN" -d "memory_limit=$PHP_MEMORY_LIMIT" bin/console --no-interaction "$@"; }
 console_has() { console list --raw 2>/dev/null | awk '{print $1}' | grep -x "$1" >/dev/null; }
 step() { printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$1"; }
+
+# Trim the deploy log in place: the hosting action keeps it open in append mode, so the file must stay the same inode.
+if [[ -f "$DEPLOY_LOG" ]] && (( $(wc -l < "$DEPLOY_LOG") > DEPLOY_LOG_KEEP_LINES )); then
+    tail -n "$DEPLOY_LOG_KEEP_LINES" "$DEPLOY_LOG" > "$DEPLOY_LOG.tmp"
+    cat "$DEPLOY_LOG.tmp" > "$DEPLOY_LOG"
+    rm -f "$DEPLOY_LOG.tmp"
+fi
 
 # --- 1. Pre-flight -----------------------------------------------------------
 step "1/6 Pre-flight"
@@ -82,6 +94,15 @@ console cache:warmup
 
 # --- 5. Database + workers ---------------------------------------------------
 step "5/6 Migrations + workers"
+if [[ -n "$WORKER_STOP_CMD" ]]; then
+    # Old workers would write with the old mapping against the new schema (arma-ai, 2026-10-24). Stop them first and
+    # start them again on every exit, so a failed migration never leaves the queue without workers.
+    if [[ -n "$WORKER_START_CMD" ]]; then
+        trap 'echo "Starting workers: $WORKER_START_CMD"; eval "$WORKER_START_CMD" || echo "WARNING: worker start failed" >&2' EXIT
+    fi
+    echo "Stopping workers: $WORKER_STOP_CMD"
+    eval "$WORKER_STOP_CMD"
+fi
 if console_has doctrine:migrations:migrate; then
     # Idempotent: exit 0 when nothing is pending. Never parse migrations:status (its format changes between versions).
     console doctrine:migrations:migrate --allow-no-migration
@@ -91,9 +112,14 @@ if [[ -f deploy/post-deploy.local.sh ]]; then
     # shellcheck source=/dev/null
     source deploy/post-deploy.local.sh
 fi
-if console_has messenger:stop-workers; then
+if [[ -z "$WORKER_STOP_CMD" ]] && console_has messenger:stop-workers; then
     # Workers finish their current message and exit; the process manager (supervisor) starts them with the new code.
     console messenger:stop-workers
+fi
+if [[ -n "$FPM_RELOAD_CMD" ]]; then
+    # PHP-FPM keeps the old code in its OPcache until reloaded (arma-ai: old vendor code after a framework upgrade).
+    echo "Reloading PHP-FPM: $FPM_RELOAD_CMD"
+    eval "$FPM_RELOAD_CMD"
 fi
 
 # --- 6. Self-test ------------------------------------------------------------

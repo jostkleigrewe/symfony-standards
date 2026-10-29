@@ -13,6 +13,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# deployments: the deploy job records the rolled-out commit per environment (GitHub deployments, shown in the hub).
+permissions:
+  contents: read
+  deployments: write
+
 concurrency:
   group: ci-${{ github.ref }}
   # Cancel superseded PR runs, never a running deploy.

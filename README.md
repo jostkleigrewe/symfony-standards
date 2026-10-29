@@ -53,6 +53,22 @@ push develop/master → CI checks → green → POST deploy webhook → hosting 
 
 Project-specific deploy steps (seeds, imports) go into `deploy/post-deploy.local.sh`; it runs after the migrations.
 
+Optional settings in `deploy/deploy.env` (all off by default):
+
+| Setting | Effect |
+|---|---|
+| `WORKER_STOP_CMD` / `WORKER_START_CMD` | Stop the workers (e.g. `sudo -n /usr/bin/supervisorctl stop 'app:*'`) before the migrations, start them again at the end — also when the deploy fails. Without it the script sends `messenger:stop-workers`. |
+| `FPM_RELOAD_CMD` | Reload PHP-FPM after the deploy so the OPcache drops old code (e.g. `sudo -n /usr/bin/systemctl reload plesk-php85-fpm`). |
+| `DEPLOY_LOG` / `DEPLOY_LOG_KEEP_LINES` | The hosting action appends the output to `var/log/deploy.log`; the script keeps the last 5000 lines. |
+
+The sudo commands need a sudoers rule for the hosting user that allows exactly these commands.
+
+### Deployments on GitHub
+
+With `deployments: write` in the project's `ci.yml` (the template sets it), the deploy job records a GitHub deployment
+per environment (`beta`, `live`) with the commit and the webhook result. The repository page then shows what runs where;
+the senior hub reads the same data. Without the permission the deploy still runs and the job logs a warning.
+
 Branches: `master` = live, `develop` = beta (inputs `live-branch`/`beta-branch` to change).
 
 ## Workflow inputs
