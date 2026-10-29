@@ -1,0 +1,29 @@
+# Standard: jostkleigrewe/symfony-standards
+# Checks run on every push and pull request. After green checks, a push to develop (beta) or master (live)
+# triggers the hosting deploy webhook — never before. Remove the push webhook on GitHub when this is active.
+#
+# Repository secrets (Settings → Secrets and variables → Actions), both optional:
+#   DEPLOY_WEBHOOK_BETA   webhook URL of the beta deployment (Plesk: Git → Repository settings → Webhook URL)
+#   DEPLOY_WEBHOOK_LIVE   webhook URL of the live deployment
+name: CI
+
+on:
+  push:
+    branches: [develop, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Cancel superseded PR runs, never a running deploy.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    uses: jostkleigrewe/symfony-standards/.github/workflows/symfony-ci.yml@v1
+    with:
+      php-version: '8.4'
+      # mysql-version: '8.4'   # start a MySQL service for tests (DATABASE_URL is set automatically)
+    secrets:
+      deploy-webhook-beta: ${{ secrets.DEPLOY_WEBHOOK_BETA }}
+      deploy-webhook-live: ${{ secrets.DEPLOY_WEBHOOK_LIVE }}

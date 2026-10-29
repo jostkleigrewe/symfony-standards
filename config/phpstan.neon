@@ -1,0 +1,12 @@
+# DE: Gemeinsame PHPStan-Basis. Pfade (paths, containerXmlPath, Baseline) setzt das Projekt in seiner
+#     phpstan.neon. PHPStan muss im Projekt-Root laufen (symfony-standards check tut das).
+# EN: Shared PHPStan base. The project sets paths, containerXmlPath and the baseline in its own phpstan.neon.
+includes:
+    - %currentWorkingDirectory%/vendor/phpstan/phpstan-symfony/extension.neon
+    - %currentWorkingDirectory%/vendor/phpstan/phpstan-symfony/rules.neon
+    - %currentWorkingDirectory%/vendor/phpstan/phpstan-doctrine/extension.neon
+    - %currentWorkingDirectory%/vendor/phpstan/phpstan-phpunit/extension.neon
+    - %currentWorkingDirectory%/vendor/phpstan/phpstan-deprecation-rules/rules.neon
+
+parameters:
+    level: 6

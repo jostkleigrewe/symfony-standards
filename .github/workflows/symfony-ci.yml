@@ -1,0 +1,94 @@
+# Reusable workflow — called from a project's .github/workflows/ci.yml (template: templates/.github/workflows/ci.yml).
+# The checks are `vendor/bin/symfony-standards check`, so a local run gives the same result as CI.
+name: Symfony CI
+
+on:
+  workflow_call:
+    inputs:
+      php-version:
+        description: PHP version, same as production (e.g. "8.4")
+        type: string
+        required: true
+      php-extensions:
+        description: Extra PHP extensions for shivammathur/setup-php
+        type: string
+        default: intl, pdo_mysql, zip
+      mysql-version:
+        description: Start a MySQL service of this version and set DATABASE_URL ("" = no database)
+        type: string
+        default: ''
+      beta-branch:
+        type: string
+        default: develop
+      live-branch:
+        type: string
+        default: master
+    secrets:
+      deploy-webhook-beta:
+        required: false
+      deploy-webhook-live:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        # An empty image means the service does not start (GitHub Actions workflow syntax).
+        image: ${{ inputs.mysql-version != '' && format('mysql:{0}', inputs.mysql-version) || '' }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: app
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping -proot" --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ inputs.php-version }}
+          extensions: ${{ inputs.php-extensions }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Database URL
+        if: inputs.mysql-version != ''
+        run: echo "DATABASE_URL=mysql://root:root@127.0.0.1:3306/app?serverVersion=${{ inputs.mysql-version }}&charset=utf8mb4" >> "$GITHUB_ENV"
+
+      - name: Composer cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ inputs.php-version }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ inputs.php-version }}-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Checks
+        run: vendor/bin/symfony-standards check
+
+  deploy:
+    name: Deploy
+    needs: checks
+    if: >-
+      github.event_name == 'push'
+      && (github.ref_name == inputs.beta-branch || github.ref_name == inputs.live-branch)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deploy webhook
+        env:
+          WEBHOOK: ${{ github.ref_name == inputs.live-branch && secrets.deploy-webhook-live || secrets.deploy-webhook-beta }}
+          TARGET: ${{ github.ref_name == inputs.live-branch && 'live' || 'beta' }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "::notice title=Deploy::No $TARGET webhook secret set — nothing deployed."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 60 --retry 2 -X POST "$WEBHOOK"
+          echo "::notice title=Deploy::$TARGET deploy triggered for ${GITHUB_SHA::7}"

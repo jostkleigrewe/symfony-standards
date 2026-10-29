@@ -1,0 +1,69 @@
+# Tests the package itself: lint the scripts and workflows, then install it into a fresh Symfony webapp,
+# run init + check (must be green out of the box) and a prod deploy run.
+name: Self-test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: shellcheck
+        run: shellcheck --shell=bash bin/symfony-standards templates/deploy/post-deploy.sh templates/deploy/deploy.env
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:latest -no-color .github/workflows/*.yml templates/.github/workflows/ci.yml
+
+  skeleton:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.4'
+            symfony: '8.1.*'
+          - php: '8.5'
+            symfony: '8.1.*'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: package
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: intl, pdo_sqlite, zip
+          coverage: none
+          tools: composer:v2
+      - name: Create Symfony webapp
+        run: |
+          composer create-project "symfony/skeleton:${{ matrix.symfony }}" app --no-interaction --no-progress
+          cd app
+          composer require webapp --no-interaction --no-progress
+      - name: Install package
+        working-directory: app
+        run: |
+          composer config repositories.standards '{"type":"path","url":"../package","options":{"symlink":false}}'
+          composer config minimum-stability dev
+          composer config prefer-stable true
+          composer require --dev "jostkleigrewe/symfony-standards:@dev" --no-interaction --no-progress
+          # The php-cs-fixer Flex recipe creates its own config; the standard replaces it.
+          rm -f .php-cs-fixer.dist.php
+          vendor/bin/symfony-standards init
+      - name: Apply fixes (fresh skeleton is not yet PER-CS / Rector clean)
+        working-directory: app
+        run: vendor/bin/symfony-standards fix
+      - name: Check
+        working-directory: app
+        run: vendor/bin/symfony-standards check
+      - name: Deploy run (prod)
+        working-directory: app
+        run: |
+          printf 'APP_ENV=prod\nAPP_SECRET=ci\nDATABASE_URL="sqlite:///%%kernel.project_dir%%/var/data.db"\n' > .env.local
+          bash deploy/post-deploy.sh

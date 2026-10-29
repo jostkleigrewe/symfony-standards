@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# DE: Ein Befehl für lokale Prüfung und CI — die CI ruft genau diesen Befehl auf, damit „lokal grün“ = „CI grün“.
+# EN: One entry point for local checks and CI; the reusable workflow calls exactly this command.
+set -uo pipefail
+
+PKG_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+readonly PKG_DIR
+readonly SKIPPED=99
+readonly STEPS=(composer-validate composer-audit cs-fixer cache-warmup phpstan rector lint-container lint-yaml lint-twig doctrine-schema importmap-audit phpunit)
+
+usage() {
+    cat <<EOF
+Usage: vendor/bin/symfony-standards <command> [args]
+
+  check [step...]   Run all checks (or only the given steps) — same as CI
+  fix               Apply php-cs-fixer and rector changes
+  init              Copy missing templates into the project (never overwrites)
+  steps             List the check steps
+
+Run from the project root. Steps: ${STEPS[*]}
+EOF
+}
+
+in_ci() { [[ "${GITHUB_ACTIONS:-}" == "true" ]]; }
+group_start() { if in_ci; then echo "::group::$1"; else printf '\n\033[1;34m▶ %s\033[0m\n' "$1"; fi; }
+group_end() { if in_ci; then echo "::endgroup::"; fi; }
+console_has() { php bin/console list --raw 2>/dev/null | awk '{print $1}' | grep -x "$1" >/dev/null; }
+
+# DE: Schritt ausführen. Rückgabe 0 = ok, SKIPPED = Voraussetzung fehlt im Projekt, sonst Fehler.
+#     Nicht 2: Rector meldet gefundene Änderungen mit Exit 2.
+# EN: Run one step. 0 ok, SKIPPED prerequisite missing, anything else fails (not 2: rector exits 2 on changes).
+run_step() {
+    case "$1" in
+        composer-validate) composer validate --strict --no-check-publish ;;
+        composer-audit) composer audit --locked --abandoned=report ;;
+        cs-fixer) PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer check --diff --show-progress=none ;;
+        cache-warmup) php bin/console cache:warmup --env=dev ;;
+        phpstan) vendor/bin/phpstan analyse --no-progress --memory-limit=1G ;;
+        rector) vendor/bin/rector process --dry-run --no-progress-bar ;;
+        lint-container) php bin/console lint:container ;;
+        lint-yaml) php bin/console lint:yaml config --parse-tags ;;
+        lint-twig)
+            [[ -d templates ]] && console_has lint:twig || return $SKIPPED
+            php bin/console lint:twig templates
+            ;;
+        doctrine-schema)
+            console_has doctrine:schema:validate || return $SKIPPED
+            # DE: --skip-sync: nur Mapping prüfen, die CI hat nicht immer eine Datenbank.
+            # EN: mapping only; CI does not always have a database.
+            php bin/console doctrine:schema:validate --skip-sync
+            ;;
+        importmap-audit)
+            [[ -f importmap.php ]] || return $SKIPPED
+            php bin/console importmap:audit
+            ;;
+        phpunit)
+            [[ -d tests ]] || return $SKIPPED
+            if [[ -x bin/phpunit ]]; then bin/phpunit; elif [[ -x vendor/bin/phpunit ]]; then vendor/bin/phpunit; else return $SKIPPED; fi
+            ;;
+        *) echo "Unknown step: $1 (see: steps)" >&2; return 1 ;;
+    esac
+}
+
+cmd_check() {
+    local steps=("$@") failed=() skipped=() step rc
+    [[ ${#steps[@]} -eq 0 ]] && steps=("${STEPS[@]}")
+    for step in "${steps[@]}"; do
+        group_start "$step"
+        run_step "$step"
+        rc=$?
+        group_end
+        case $rc in
+            0) ;;
+            "$SKIPPED") skipped+=("$step") ;;
+            *) failed+=("$step"); in_ci && echo "::error title=symfony-standards::step '$step' failed" ;;
+        esac
+    done
+    echo
+    [[ ${#skipped[@]} -gt 0 ]] && echo "⏭  skipped (not used in this project): ${skipped[*]}"
+    if [[ ${#failed[@]} -gt 0 ]]; then
+        echo "❌ failed: ${failed[*]}"
+        return 1
+    fi
+    echo "✅ all checks passed"
+}
+
+cmd_fix() {
+    PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix --show-progress=none
+    vendor/bin/rector process --no-progress-bar
+    # DE: Rector kann Stil-Abweichungen erzeugen — danach erneut formatieren.
+    # EN: Rector may produce style drift, so format again.
+    PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix --show-progress=none
+}
+
+cmd_init() {
+    local src rel
+    while IFS= read -r -d '' src; do
+        rel="${src#"$PKG_DIR/templates/"}"
+        if [[ -e "$rel" ]]; then
+            # DE: Flex-Recipes (z. B. php-cs-fixer) legen eigene Configs an — die würden den Standard still ersetzen.
+            # EN: Flex recipes create their own configs, which would silently replace the standard.
+            if [[ "$rel" != deploy/* && "$rel" != .github/* ]] && ! grep -q symfony-standards "$rel"; then
+                echo "⚠️  $rel exists and does not use the standard — compare: diff $rel $src"
+            else
+                echo "⏭  $rel exists — kept"
+            fi
+            continue
+        fi
+        mkdir -p "$(dirname "$rel")"
+        cp -p "$src" "$rel"
+        echo "✅ $rel created"
+    done < <(find "$PKG_DIR/templates" -type f -print0 | sort -z)
+    echo
+    echo "Next: review the new files, set the PHP version in .github/workflows/ci.yml, run: vendor/bin/symfony-standards check"
+}
+
+main() {
+    local cmd="${1:-}"
+    [[ $# -gt 0 ]] && shift
+    case "$cmd" in
+        check|fix|init)
+            if [[ ! -f composer.json || ! -f bin/console ]]; then
+                echo "Run from the root of a Symfony project (composer.json + bin/console)." >&2
+                return 1
+            fi
+            "cmd_$cmd" "$@"
+            ;;
+        steps) printf '%s\n' "${STEPS[@]}" ;;
+        -h|--help|help|"") usage ;;
+        *) usage >&2; return 1 ;;
+    esac
+}
+
+main "$@"

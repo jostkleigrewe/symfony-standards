@@ -1,0 +1,28 @@
+{
+    "name": "jostkleigrewe/symfony-standards",
+    "description": "Shared quality and deploy standards for Symfony apps: tool configs, one check command for local and CI, reusable GitHub workflow, deploy script template.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["symfony", "ci", "phpstan", "rector", "php-cs-fixer", "deploy", "plesk"],
+    "authors": [
+        {
+            "name": "Sven Jostkleigrewe"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "friendsofphp/php-cs-fixer": "3.95.27",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-deprecation-rules": "^2.0",
+        "phpstan/phpstan-doctrine": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-symfony": "^2.0",
+        "rector/rector": "^2.2"
+    },
+    "bin": [
+        "bin/symfony-standards"
+    ],
+    "config": {
+        "sort-packages": true
+    }
+}
