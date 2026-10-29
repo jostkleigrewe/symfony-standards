@@ -55,6 +55,11 @@ run_step() {
             ;;
         phpunit)
             [[ -d tests ]] || return $SKIPPED
+            # Tests without a config would only print PHPUnit's usage text (backend, 2026-10-29) — say what is missing.
+            if [[ ! -f phpunit.dist.xml && ! -f phpunit.xml.dist && ! -f phpunit.xml ]]; then
+                echo "tests/ exists but no PHPUnit config (phpunit.dist.xml) — create one (Symfony recipe: composer recipes:install phpunit/phpunit --force)" >&2
+                return 1
+            fi
             if [[ -x bin/phpunit ]]; then bin/phpunit; elif [[ -x vendor/bin/phpunit ]]; then vendor/bin/phpunit; else return $SKIPPED; fi
             ;;
         *) echo "Unknown step: $1 (see: steps)" >&2; return 1 ;;
