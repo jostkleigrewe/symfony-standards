@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-29
+
+### Fixed
+- The deploy job runs on the `runs-on` runner like the checks instead of a hard-coded `ubuntu-latest`; it never started on accounts without GitHub-hosted minutes.
+
 ## [1.0.0] - 2026-10-29
 
 ### Added
@@ -13,5 +18,6 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - Templates: project tool configs, `ci.yml`, `deploy/post-deploy.sh`, `deploy/deploy.env`.
 - Workflow inputs `runs-on` (JSON) and `timeout-minutes`; on self-hosted runners `setup-php` runs in self-hosted mode and the database comes from `CI_DATABASE_*` instead of a service container.
 
-[Unreleased]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/jostkleigrewe/symfony-standards/releases/tag/v1.0.0

@@ -101,7 +101,10 @@ jobs:
     if: >-
       github.event_name == 'push'
       && (github.ref_name == inputs.beta-branch || github.ref_name == inputs.live-branch)
-    runs-on: ubuntu-latest
+    # Same runner as the checks: a hard-coded GitHub-hosted runner cannot start when hosted minutes are blocked
+    # (coole-hufe, 2026-10-29: green checks, deploy job never started).
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 5
     steps:
       - name: Trigger deploy webhook
         env:
