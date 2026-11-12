@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-12
+
+### Changed
+- `check`: when the PHPUnit config sets `defaultTestSuite` (e.g. `unit`), PHPUnit runs every `<testsuite>` by name, so integration and application suites are never skipped silently.
+
 ## [1.1.1] - 2026-10-29
 
 ### Fixed

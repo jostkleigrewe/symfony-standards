@@ -60,7 +60,16 @@ run_step() {
                 echo "tests/ exists but no PHPUnit config (phpunit.dist.xml) — create one (Symfony recipe: composer recipes:install phpunit/phpunit --force)" >&2
                 return 1
             fi
-            if [[ -x bin/phpunit ]]; then bin/phpunit; elif [[ -x vendor/bin/phpunit ]]; then vendor/bin/phpunit; else return $SKIPPED; fi
+            local phpunit cfg suites
+            if [[ -x bin/phpunit ]]; then phpunit=bin/phpunit; elif [[ -x vendor/bin/phpunit ]]; then phpunit=vendor/bin/phpunit; else return $SKIPPED; fi
+            # A defaultTestSuite (e.g. "unit", standard symfony-testing-1.0) would make a bare run skip the
+            # integration/application suites without anyone noticing — CI runs every suite by name (2026-11-12).
+            for cfg in phpunit.xml phpunit.dist.xml phpunit.xml.dist; do [[ -f $cfg ]] && break; done
+            if grep -q 'defaultTestSuite=' "$cfg"; then
+                suites=$(grep -o '<testsuite name="[^"]*"' "$cfg" | sed 's/.*name="//; s/"$//' | paste -sd, -)
+                [[ -n $suites ]] && { "$phpunit" --testsuite "$suites"; return; }
+            fi
+            "$phpunit"
             ;;
         *) echo "Unknown step: $1 (see: steps)" >&2; return 1 ;;
     esac
