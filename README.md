@@ -16,7 +16,7 @@ vendor/bin/symfony-standards check    # what CI runs
 | Part | Where | Purpose |
 |---|---|---|
 | Tool configs | `config/` (used via one-line project files) | php-cs-fixer (PER-CS 3.0 + `declare_strict_types`), PHPStan (level 6, Symfony/Doctrine/PHPUnit/deprecation extensions), Rector (PHP and framework sets from your installed versions) |
-| `check` | `bin/symfony-standards` | `composer validate`/`audit`, php-cs-fixer, PHPStan, Rector dry-run, `lint:container`/`yaml`/`twig`, `doctrine:schema:validate --skip-sync`, `importmap:audit`, PHPUnit. Steps the project does not use (no Doctrine, no importmap, no tests) are skipped. |
+| `check` | `bin/symfony-standards` | `composer validate`/`audit`, php-cs-fixer, PHPStan, Rector dry-run, `lint:container`/`yaml`/`twig`, `doctrine:schema:validate --skip-sync`, `importmap:audit`, PHPUnit (all test suites, also with a `defaultTestSuite`). Steps the project does not use (no Doctrine, no importmap, no tests) are skipped. |
 | Reusable workflow | `.github/workflows/symfony-ci.yml` | Runs `check`; after green checks a push to `develop`/`master` calls the beta/live deploy webhook. |
 | Deploy script | `templates/deploy/post-deploy.sh` | composer install, assets, fresh cache, migrations, project hook, worker restart, self-test |
 
