@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-16
+
+### Fixed
+- Re-release of 1.2.0 without code changes: the `v1.2.0` tag was moved after its first publication, and Packagist keeps published versions immutable, so `v1.2.0` there still resolves to the 1.1.1 code. Use 1.2.1 to get the `defaultTestSuite` change.
+
 ## [1.2.0] - 2026-11-12
 
 ### Changed
@@ -38,7 +43,9 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - Templates: project tool configs, `ci.yml`, `deploy/post-deploy.sh`, `deploy/deploy.env`.
 - Workflow inputs `runs-on` (JSON) and `timeout-minutes`; on self-hosted runners `setup-php` runs in self-hosted mode and the database comes from `CI_DATABASE_*` instead of a service container.
 
-[Unreleased]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.0.0...v1.0.1
