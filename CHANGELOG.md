@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-20
+
 ### Added
 - `check`: new first step `app-secret` (id `app-secret-in-env`) warns when `APP_SECRET` has a value in the committed `.env`; the value is never printed. `.env.local*`, `.env.dev` and `.env.test` are not checked; without `.env` the step is skipped.
 - `check --strict` (or `SYMFONY_STANDARDS_STRICT=1`) turns warnings into failures. Without it warnings keep the run green and show up in the summary (`✅ all checks passed (1 warning)`) and, on GitHub Actions, as annotations.
@@ -48,7 +50,8 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - Templates: project tool configs, `ci.yml`, `deploy/post-deploy.sh`, `deploy/deploy.env`.
 - Workflow inputs `runs-on` (JSON) and `timeout-minutes`; on self-hosted runners `setup-php` runs in self-hosted mode and the database comes from `CI_DATABASE_*` instead of a service container.
 
-[Unreleased]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.1.0...v1.1.1
