@@ -6,13 +6,18 @@ set -uo pipefail
 PKG_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 readonly PKG_DIR
 readonly SKIPPED=99
-readonly STEPS=(composer-validate composer-audit cs-fixer cache-warmup phpstan rector lint-container lint-yaml lint-twig doctrine-schema importmap-audit phpunit)
+# DE: Schritt hat nur gewarnt (zählt im strengen Modus als Fehler).
+# EN: Step only warned (counts as a failure in strict mode).
+readonly WARNED=98
+readonly STEPS=(app-secret composer-validate composer-audit cs-fixer cache-warmup phpstan rector lint-container lint-yaml lint-twig doctrine-schema importmap-audit phpunit)
 
 usage() {
     cat <<EOF
 Usage: vendor/bin/symfony-standards <command> [args]
 
-  check [step...]   Run all checks (or only the given steps) — same as CI
+  check [--strict] [step...]
+                    Run all checks (or only the given steps) — same as CI.
+                    --strict (or SYMFONY_STANDARDS_STRICT=1) turns warnings into failures.
   fix               Apply php-cs-fixer and rector changes
   init              Copy missing templates into the project (never overwrites)
   steps             List the check steps
@@ -24,6 +29,37 @@ EOF
 in_ci() { [[ "${GITHUB_ACTIONS:-}" == "true" ]]; }
 group_start() { if in_ci; then echo "::group::$1"; else printf '\n\033[1;34m▶ %s\033[0m\n' "$1"; fi; }
 group_end() { if in_ci; then echo "::endgroup::"; fi; }
+# DE: Liefert 0, wenn eine APP_SECRET-Zeile in .env einen Wert hat. Den Wert nie ausgeben.
+#     .env ist versioniert; das Geheimnis gehört in .env.local auf dem Server. .env.dev/.env.test/.env.local* bleiben außen vor.
+# EN: Returns 0 when an APP_SECRET line in .env has a value. Never print the value.
+#     .env is committed; the secret belongs in .env.local on the server. .env.dev/.env.test/.env.local* are not checked.
+check_app_secret() {
+    local line rest value nr=0 found=1
+    local re_line='^[[:space:]]*(export[[:space:]]+)?APP_SECRET[[:space:]]*=(.*)$' re_dq='^"([^"]*)"' re_sq="^'([^']*)'"
+    while IFS= read -r line || [[ -n $line ]]; do
+        nr=$((nr + 1))
+        [[ $line =~ $re_line ]] || continue
+        rest=${BASH_REMATCH[2]}
+        rest=${rest#"${rest%%[![:space:]]*}"}
+        if [[ $rest =~ $re_dq || $rest =~ $re_sq ]]; then
+            value=${BASH_REMATCH[1]}
+        elif [[ $rest == \#* ]]; then
+            value=
+        else
+            # DE: Ohne Anführungszeichen endet der Wert vor dem ersten „ #“. EN: Unquoted value ends before the first " #".
+            value=${rest%%[[:space:]]#*}
+            value=${value%"${value##*[![:space:]]}"}
+        fi
+        # DE: Jede Zeile zählt — auch ein später überschriebener Wert steht im Git. EN: Every line counts; an overridden value is still in Git.
+        if [[ -n $value ]]; then
+            echo "⚠️  .env:$nr: APP_SECRET has a value — leave it empty, the value belongs in .env.local on the server (set the server first, then empty .env) [app-secret-in-env]"
+            in_ci && echo "::warning file=.env,line=$nr,title=symfony-standards::APP_SECRET has a value in .env (app-secret-in-env)"
+            found=0
+        fi
+    done < .env
+    return $found
+}
+
 console_has() { php bin/console list --raw 2>/dev/null | awk '{print $1}' | grep -x "$1" >/dev/null; }
 
 # DE: Schritt ausführen. Rückgabe 0 = ok, SKIPPED = Voraussetzung fehlt im Projekt, sonst Fehler.
@@ -31,6 +67,11 @@ console_has() { php bin/console list --raw 2>/dev/null | awk '{print $1}' | grep
 # EN: Run one step. 0 ok, SKIPPED prerequisite missing, anything else fails (not 2: rector exits 2 on changes).
 run_step() {
     case "$1" in
+        app-secret)
+            [[ -f .env ]] || return $SKIPPED
+            if check_app_secret; then return $WARNED; fi
+            echo "APP_SECRET in .env is empty"
+            ;;
         composer-validate) composer validate --strict --no-check-publish ;;
         composer-audit) composer audit --locked --abandoned=report ;;
         cs-fixer) PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer check --diff --show-progress=none ;;
@@ -76,7 +117,11 @@ run_step() {
 }
 
 cmd_check() {
-    local steps=("$@") failed=() skipped=() step rc
+    local steps=() failed=() skipped=() warned=() step rc strict=0
+    [[ "${SYMFONY_STANDARDS_STRICT:-0}" == "1" ]] && strict=1
+    for step in "$@"; do
+        if [[ $step == --strict ]]; then strict=1; else steps+=("$step"); fi
+    done
     [[ ${#steps[@]} -eq 0 ]] && steps=("${STEPS[@]}")
     for step in "${steps[@]}"; do
         group_start "$step"
@@ -86,16 +131,30 @@ cmd_check() {
         case $rc in
             0) ;;
             "$SKIPPED") skipped+=("$step") ;;
+            "$WARNED")
+                if [[ $strict -eq 1 ]]; then
+                    failed+=("$step"); in_ci && echo "::error title=symfony-standards::step '$step' warned (strict mode)"
+                else
+                    warned+=("$step")
+                fi
+                ;;
             *) failed+=("$step"); in_ci && echo "::error title=symfony-standards::step '$step' failed" ;;
         esac
     done
     echo
     [[ ${#skipped[@]} -gt 0 ]] && echo "⏭  skipped (not used in this project): ${skipped[*]}"
+    [[ ${#warned[@]} -gt 0 ]] && echo "⚠️  warnings: ${warned[*]} (--strict makes them fail)"
     if [[ ${#failed[@]} -gt 0 ]]; then
         echo "❌ failed: ${failed[*]}"
         return 1
     fi
-    echo "✅ all checks passed"
+    if [[ ${#warned[@]} -gt 0 ]]; then
+        local noun=warnings
+        [[ ${#warned[@]} -eq 1 ]] && noun=warning
+        echo "✅ all checks passed (${#warned[@]} $noun)"
+    else
+        echo "✅ all checks passed"
+    fi
 }
 
 cmd_fix() {

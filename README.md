@@ -16,7 +16,7 @@ vendor/bin/symfony-standards check    # what CI runs
 | Part | Where | Purpose |
 |---|---|---|
 | Tool configs | `config/` (used via one-line project files) | php-cs-fixer (PER-CS 3.0 + `declare_strict_types`), PHPStan (level 6, Symfony/Doctrine/PHPUnit/deprecation extensions), Rector (PHP and framework sets from your installed versions) |
-| `check` | `bin/symfony-standards` | `composer validate`/`audit`, php-cs-fixer, PHPStan, Rector dry-run, `lint:container`/`yaml`/`twig`, `doctrine:schema:validate --skip-sync`, `importmap:audit`, PHPUnit (all test suites, also with a `defaultTestSuite`). Steps the project does not use (no Doctrine, no importmap, no tests) are skipped. |
+| `check` | `bin/symfony-standards` | `APP_SECRET` in `.env` must be empty (warning), `composer validate`/`audit`, php-cs-fixer, PHPStan, Rector dry-run, `lint:container`/`yaml`/`twig`, `doctrine:schema:validate --skip-sync`, `importmap:audit`, PHPUnit (all test suites, also with a `defaultTestSuite`). Steps the project does not use (no Doctrine, no importmap, no tests) are skipped. |
 | Reusable workflow | `.github/workflows/symfony-ci.yml` | Runs `check`; after green checks a push to `develop`/`master` calls the beta/live deploy webhook. |
 | Deploy script | `templates/deploy/post-deploy.sh` | composer install, assets, fresh cache, migrations, project hook, worker restart, self-test |
 
@@ -35,6 +35,15 @@ deploy/deploy.env          versioned deploy settings (PHP binary, PATH, required
 
 Symfony Flex recipes may already have created `.php-cs-fixer.dist.php`; `init` warns when an existing file does
 not use the standard. Replace it with the template.
+
+## Warnings and strict mode
+
+Some steps only warn: the run stays green and ends with `✅ all checks passed (1 warning)`.
+`check --strict` or `SYMFONY_STANDARDS_STRICT=1` turns warnings into failures.
+
+| Step | Warns when | Fix |
+|---|---|---|
+| `app-secret` (`app-secret-in-env`) | an `APP_SECRET` line in `.env` has a value (`.env` is committed). `.env.local*`, `.env.dev` and `.env.test` are not checked; the value is never printed. | Put the secret into `.env.local` on the server first, then leave `APP_SECRET=` empty in `.env`. |
 
 Existing projects: run `fix` once, then create a PHPStan baseline
 (`vendor/bin/phpstan analyse --generate-baseline`, add it to `phpstan.neon`). New code must not add entries.

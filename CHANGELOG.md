@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+### Added
+- `check`: new first step `app-secret` (id `app-secret-in-env`) warns when `APP_SECRET` has a value in the committed `.env`; the value is never printed. `.env.local*`, `.env.dev` and `.env.test` are not checked; without `.env` the step is skipped.
+- `check --strict` (or `SYMFONY_STANDARDS_STRICT=1`) turns warnings into failures. Without it warnings keep the run green and show up in the summary (`✅ all checks passed (1 warning)`) and, on GitHub Actions, as annotations.
+- `tests/app-secret.sh` covers the step and runs in the self-test workflow.
+
 ## [1.2.1] - 2026-11-16
 
 ### Fixed

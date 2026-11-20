@@ -17,7 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: shellcheck
-        run: shellcheck --shell=bash bin/symfony-standards templates/deploy/post-deploy.sh templates/deploy/deploy.env
+        run: shellcheck --shell=bash bin/symfony-standards tests/app-secret.sh templates/deploy/post-deploy.sh templates/deploy/deploy.env
+      - name: Script tests
+        run: bash tests/app-secret.sh
       - name: actionlint
         run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:latest -no-color .github/workflows/*.yml templates/.github/workflows/ci.yml
 
