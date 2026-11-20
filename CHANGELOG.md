@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-20
+
 ### Changed
 - The `ci.yml` template references the reusable workflow with the pinned tag `@v1.3.0` instead of the moving `@v1`; README "Versioning" describes pinned tags. The `v1` tag stays in place for existing projects but is deprecated.
 
@@ -56,7 +58,8 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - Templates: project tool configs, `ci.yml`, `deploy/post-deploy.sh`, `deploy/deploy.env`.
 - Workflow inputs `runs-on` (JSON) and `timeout-minutes`; on self-hosted runners `setup-php` runs in self-hosted mode and the database comes from `CI_DATABASE_*` instead of a service container.
 
-[Unreleased]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.1.1...v1.2.0
