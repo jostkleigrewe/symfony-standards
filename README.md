@@ -28,7 +28,8 @@ The package requires the tools (php-cs-fixer pinned exactly, the others with `^`
 .php-cs-fixer.dist.php     one line → config/php-cs-fixer.php (extra rules as 2nd argument)
 phpstan.neon               includes config/phpstan.neon; paths, level, baseline live here
 rector.php                 one line → config/rector.php (chain ->withSkip()/->withRules())
-.github/workflows/ci.yml   calls the reusable workflow — set php-version
+.github/workflows/ci.yml   calls the reusable workflow at a pinned tag (@vX.Y.Z) — set php-version
+.github/dependabot.yml     composer + github-actions, monthly, grouped, no majors — raises the pinned workflow tag
 deploy/post-deploy.sh      keep identical to the template
 deploy/deploy.env          versioned deploy settings (PHP binary, PATH, required vars) — no secrets
 ```
@@ -106,5 +107,13 @@ Never use a self-hosted runner for a public repository: anyone could run code on
 
 ## Versioning
 
-Semver. The workflow is referenced as `@v1` (moving major tag); configs follow the Composer version.
+Semver. Projects reference the workflow with a **pinned release tag** (`symfony-ci.yml@v1.3.0`), and Dependabot
+(`package-ecosystem: github-actions` in `.github/dependabot.yml`, part of the templates: monthly, minor and patch
+grouped, no target-branch so pull requests go to the default branch `develop`) raises it by pull request.
+Major releases are ignored there on purpose — they can turn a green project red and need their own change.
+That way a new package release reaches a project only through a pull request whose CI passed, never silently on the
+next run. Configs follow the Composer version. Each release updates the tag in `templates/.github/workflows/ci.yml`.
 A rule change that can turn a green project red is a major version. See [CHANGELOG.md](CHANGELOG.md).
+
+The moving major tag `v1` still exists for projects that reference `@v1`; it is deprecated and no longer documented
+for new projects. Switch such projects to a pinned tag and add the Dependabot file (`init` creates it if missing).
