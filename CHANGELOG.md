@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+### Changed
+- The `ci.yml` template references the reusable workflow with the pinned tag `@v1.3.0` instead of the moving `@v1`; README "Versioning" describes pinned tags. The `v1` tag stays in place for existing projects but is deprecated.
+
+### Added
+- Template `.github/dependabot.yml` (`package-ecosystem: github-actions`, target branch `develop`): Dependabot raises the pinned workflow tag by pull request. `init` copies it like every other template and keeps an existing file.
+
 ## [1.3.0] - 2026-11-20
 
 ### Added

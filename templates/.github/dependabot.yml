@@ -1,0 +1,13 @@
+# Standard: jostkleigrewe/symfony-standards
+# Dependabot raises the pinned workflow tag in .github/workflows/ci.yml (symfony-ci.yml@vX.Y.Z) by pull request,
+# so every package release passes this project's CI before it is merged.
+# Pull requests target develop (beta) first, like every other change. Without a develop branch remove target-branch.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
