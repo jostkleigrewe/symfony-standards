@@ -4,6 +4,9 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+### Fixed
+- `check`, step `importmap-audit`: when Symfony's audit fails only because the GitHub advisory API rate-limits unauthenticated requests (HTTP 403, 60 per hour and IP, shared by CI runners), the step now warns instead of failing — there is no result about the packages. Findings and every other error still fail, `--strict` turns the warning into a failure. Covered by `tests/importmap-audit.sh`.
+
 ## [1.5.0] - 2026-11-21
 
 ### Added

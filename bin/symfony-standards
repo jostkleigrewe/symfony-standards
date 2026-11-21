@@ -104,7 +104,23 @@ run_step() {
             ;;
         importmap-audit)
             [[ -f importmap.php ]] || return $SKIPPED
-            php bin/console importmap:audit
+            # DE: Symfony fragt die GitHub-Advisory-API ohne Token ab (ImportMapAuditor, AUDIT_URL) — 60 Abrufe je Stunde und
+            #     IP, GitHub-Runner teilen sich IPs. Scheitert der Abruf NUR am Ratenlimit (HTTP 403 „rate limit“), ist das
+            #     kein Befund über das Projekt: Warnung statt Fehler (--strict macht sie wieder rot). Funde und alle anderen
+            #     Fehler bleiben Fehler. Anlass: 21.11.2026 zweimal rote CI in skeleton (8.5) nur durch das Limit.
+            # EN: Symfony queries the GitHub advisory API without a token (60 requests/hour per IP, shared runner IPs).
+            #     A failure caused only by the rate limit says nothing about the project: warn instead of fail.
+            local audit audit_rc
+            audit=$(php bin/console importmap:audit 2>&1)
+            audit_rc=$?
+            printf '%s\n' "$audit"
+            [[ $audit_rc -eq 0 ]] && return 0
+            if [[ $audit == *"Error 403 auditing packages"* && $audit == *"rate limit"* ]]; then
+                echo "importmap:audit could not reach the GitHub advisory API (rate limit for unauthenticated requests)." >&2
+                echo "No result about the packages — run it again later (composer-audit is not affected)." >&2
+                return $WARNED
+            fi
+            return "$audit_rc"
             ;;
         phpunit)
             [[ -d tests ]] || return $SKIPPED
