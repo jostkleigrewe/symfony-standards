@@ -17,9 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: shellcheck
-        run: shellcheck --shell=bash bin/symfony-standards tests/app-secret.sh templates/deploy/post-deploy.sh templates/deploy/deploy.env
+        run: shellcheck --shell=bash bin/symfony-standards tests/*.sh templates/deploy/post-deploy.sh templates/deploy/deploy.env
       - name: Script tests
-        run: bash tests/app-secret.sh
+        # DE: Alle Tests laufen lassen, am Ende gesammelt scheitern. EN: Run every test, fail once at the end.
+        run: rc=0; for t in tests/*.sh; do bash "$t" || rc=1; done; exit $rc
       - name: actionlint
         run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:latest -no-color .github/workflows/*.yml templates/.github/workflows/ci.yml
 

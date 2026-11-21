@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 /*
- * DE: Gemeinsame php-cs-fixer-Konfiguration: PER Coding Style 3.0 plus strict_types und sortierte Imports.
+ * DE: Gemeinsame php-cs-fixer-Konfiguration: PER Coding Style 3.0 plus Hausstil — strict_types, sortierte Imports,
+ *     Leerzeile vor return und vertikal ausgerichtete PHPDoc-Tags (Hausstil B, seit 1.5.0).
  *     Aufruf aus der .php-cs-fixer.dist.php des Projekts:
  *     return (require __DIR__.'/vendor/jostkleigrewe/symfony-standards/config/php-cs-fixer.php')(__DIR__);
- * EN: Shared php-cs-fixer config (PER-CS 3.0 + strict_types + ordered imports), called with the project root.
+ * EN: Shared php-cs-fixer config (PER-CS 3.0 + house style: strict_types, ordered imports, blank line before return,
+ *     vertically aligned PHPDoc tags — house style B since 1.5.0), called with the project root.
  */
 
 use PhpCsFixer\Config;
@@ -28,6 +30,12 @@ return static function (string $projectDir, array $extraRules = []): Config {
             'declare_strict_types' => true,
             'no_unused_imports' => true,
             'ordered_imports' => ['sort_algorithm' => 'alpha', 'imports_order' => ['class', 'function', 'const']],
+            // DE: Hausstil B: nur vor return eine Leerzeile (nicht vor break/continue/… wie im Fixer-Default).
+            // EN: House style B: blank line before return only (not break/continue/… as in the fixer default).
+            'blank_line_before_statement' => ['statements' => ['return']],
+            // DE: Fixer-Default: align=vertical, spacing=1, Tags method/param/property/return/throws/type/var.
+            // EN: Fixer default: align=vertical, spacing=1, tags method/param/property/return/throws/type/var.
+            'phpdoc_align' => true,
         ], $extraRules))
         ->setFinder($finder);
 };

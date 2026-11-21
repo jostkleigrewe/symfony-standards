@@ -9,7 +9,7 @@ readonly SKIPPED=99
 # DE: Schritt hat nur gewarnt (zählt im strengen Modus als Fehler).
 # EN: Step only warned (counts as a failure in strict mode).
 readonly WARNED=98
-readonly STEPS=(app-secret composer-validate composer-audit cs-fixer cache-warmup phpstan rector lint-container lint-yaml lint-twig doctrine-schema importmap-audit phpunit)
+readonly STEPS=(app-secret composer-validate composer-audit importmap-install cs-fixer cache-warmup phpstan rector lint-container lint-yaml lint-twig doctrine-schema importmap-audit phpunit)
 
 usage() {
     cat <<EOF
@@ -74,6 +74,18 @@ run_step() {
             ;;
         composer-validate) composer validate --strict --no-check-publish ;;
         composer-audit) composer audit --locked --abandoned=report ;;
+        importmap-install)
+            # DE: assets/vendor/ ist nicht versioniert. Ohne den Download scheitern cache-warmup und Tests später mit
+            #     unverständlichen Fehlern (Sandbox/CI ohne Netz) — darum früh holen und die Ursache klar benennen.
+            # EN: assets/vendor/ is not versioned. Without the download cache-warmup and tests fail later with unclear
+            #     errors (sandbox/CI without network), so fetch it early and name the cause.
+            [[ -f importmap.php ]] && console_has importmap:install || return $SKIPPED
+            php bin/console importmap:install && return 0
+            echo "importmap:install failed — most likely no network or jsDelivr (cdn.jsdelivr.net) is unreachable." >&2
+            echo "The packages from importmap.php are downloaded into assets/vendor/ (not versioned); without them" >&2
+            echo "cache-warmup and tests fail. Allow cdn.jsdelivr.net (sandbox/CI firewall) or run it where the network works." >&2
+            return 1
+            ;;
         cs-fixer) PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer check --diff --show-progress=none ;;
         cache-warmup) php bin/console cache:warmup --env=dev ;;
         phpstan) vendor/bin/phpstan analyse --no-progress --memory-limit=1G ;;

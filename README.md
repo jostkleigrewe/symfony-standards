@@ -15,10 +15,10 @@ vendor/bin/symfony-standards check    # what CI runs
 
 | Part | Where | Purpose |
 |---|---|---|
-| Tool configs | `config/` (used via one-line project files) | php-cs-fixer (PER-CS 3.0 + `declare_strict_types`), PHPStan (level 6, Symfony/Doctrine/PHPUnit/deprecation extensions), Rector (PHP and framework sets from your installed versions) |
-| `check` | `bin/symfony-standards` | `APP_SECRET` in `.env` must be empty (warning), `composer validate`/`audit`, php-cs-fixer, PHPStan, Rector dry-run, `lint:container`/`yaml`/`twig`, `doctrine:schema:validate --skip-sync`, `importmap:audit`, PHPUnit (all test suites, also with a `defaultTestSuite`). Steps the project does not use (no Doctrine, no importmap, no tests) are skipped. |
+| Tool configs | `config/` (used via one-line project files) | php-cs-fixer (PER-CS 3.0 + `declare_strict_types`, ordered imports, blank line before `return`, aligned PHPDoc), PHPStan (level 6, Symfony/Doctrine/PHPUnit/deprecation extensions), Rector (PHP and framework sets from your installed versions) |
+| `check` | `bin/symfony-standards` | `APP_SECRET` in `.env` must be empty (warning), `composer validate`/`audit`, `importmap:install` (fetches `assets/vendor/` early, names a missing network/jsDelivr as the cause), php-cs-fixer, PHPStan, Rector dry-run, `lint:container`/`yaml`/`twig`, `doctrine:schema:validate --skip-sync`, `importmap:audit`, PHPUnit (all test suites, also with a `defaultTestSuite`). Steps the project does not use (no Doctrine, no importmap, no tests) are skipped. |
 | Reusable workflow | `.github/workflows/symfony-ci.yml` | Runs `check`; after green checks a push to `develop`/`master` calls the beta/live deploy webhook. |
-| Deploy script | `templates/deploy/post-deploy.sh` | composer install, assets, fresh cache, migrations, project hook, worker restart, self-test |
+| Deploy script | `templates/deploy/post-deploy.sh` | prod guard (stops unless Symfony boots `APP_ENV=prod` without debug), composer install, assets, fresh cache, migrations, project hook, worker restart, self-test |
 
 The package requires the tools (php-cs-fixer pinned exactly, the others with `^`), so one `require --dev` is enough.
 
@@ -63,12 +63,20 @@ push develop/master → CI checks → green → POST deploy webhook → hosting 
 
 Project-specific deploy steps (seeds, imports) go into `deploy/post-deploy.local.sh`; it runs after the migrations.
 
+Before it changes anything, the script asks Symfony itself (`Dotenv::bootEnv()` from `vendor/`, the logic of
+`symfony/runtime`) which `APP_ENV`/`APP_DEBUG` the app would boot with — `.env.local.php` from `composer dump-env`,
+the `.env*` files in Symfony's order and real environment variables included. It stops with an error unless the
+result is `APP_ENV=prod` and `APP_DEBUG=0`: a dev environment on a server exposes the profiler and
+`/_profiler/phpinfo`. On the first deploy (`vendor/` missing) the check runs right after `composer install`.
+Not visible to the script: variables that only the web server (PHP-FPM) sets, and custom `extra.runtime` options.
+
 Optional settings in `deploy/deploy.env` (all off by default):
 
 | Setting | Effect |
 |---|---|
 | `WORKER_STOP_CMD` / `WORKER_START_CMD` | Stop the workers (e.g. `sudo -n /usr/bin/supervisorctl stop 'app:*'`) before the migrations, start them again at the end — also when the deploy fails. Without it the script sends `messenger:stop-workers`. |
 | `FPM_RELOAD_CMD` | Reload PHP-FPM after the deploy so the OPcache drops old code (e.g. `sudo -n /usr/bin/systemctl reload plesk-php85-fpm`). |
+| `ALLOW_NON_PROD_ENV` | `1` deploys even when `APP_ENV` is not `prod` or `APP_DEBUG` is on (warning instead of stop). Only for an intended exception such as a demo server, never beta/live. |
 | `DEPLOY_LOG` / `DEPLOY_LOG_KEEP_LINES` | The hosting action appends the output to `var/log/deploy.log`; the script keeps the last 5000 lines. |
 
 The sudo commands need a sudoers rule for the hosting user that allows exactly these commands.
@@ -107,7 +115,7 @@ Never use a self-hosted runner for a public repository: anyone could run code on
 
 ## Versioning
 
-Semver. Projects reference the workflow with a **pinned release tag** (`symfony-ci.yml@v1.3.0`), and Dependabot
+Semver. Projects reference the workflow with a **pinned release tag** (`symfony-ci.yml@v1.5.0`), and Dependabot
 (`package-ecosystem: github-actions` in `.github/dependabot.yml`, part of the templates: monthly, minor and patch
 grouped, no target-branch so pull requests go to the default branch `develop`) raises it by pull request.
 Major releases are ignored there on purpose — they can turn a green project red and need their own change.
