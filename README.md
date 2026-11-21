@@ -115,7 +115,7 @@ Never use a self-hosted runner for a public repository: anyone could run code on
 
 ## Versioning
 
-Semver. Projects reference the workflow with a **pinned release tag** (`symfony-ci.yml@v1.5.0`), and Dependabot
+Semver. Projects reference the workflow with a **pinned release tag** (`symfony-ci.yml@v1.5.1`), and Dependabot
 (`package-ecosystem: github-actions` in `.github/dependabot.yml`, part of the templates: monthly, minor and patch
 grouped, no target-branch so pull requests go to the default branch `develop`) raises it by pull request.
 Major releases are ignored there on purpose — they can turn a green project red and need their own change.

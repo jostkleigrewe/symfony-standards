@@ -4,8 +4,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-21
+
 ### Fixed
 - `check`, step `importmap-audit`: when Symfony's audit fails only because the GitHub advisory API rate-limits unauthenticated requests (HTTP 403, 60 per hour and IP, shared by CI runners), the step now warns instead of failing — there is no result about the packages. Findings and every other error still fail, `--strict` turns the warning into a failure. Covered by `tests/importmap-audit.sh`.
+
+### Changed
+- README, versioning: a pure formatting rule that `symfony-standards fix` applies automatically is a minor version; rule changes that need hand-written code changes stay major.
+- The `ci.yml` template references the reusable workflow at `@v1.5.1`.
 
 ## [1.5.0] - 2026-11-21
 
@@ -73,7 +79,8 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - Templates: project tool configs, `ci.yml`, `deploy/post-deploy.sh`, `deploy/deploy.env`.
 - Workflow inputs `runs-on` (JSON) and `timeout-minutes`; on self-hosted runners `setup-php` runs in self-hosted mode and the database comes from `CI_DATABASE_*` instead of a service container.
 
-[Unreleased]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.2.1...v1.3.0
