@@ -15,7 +15,7 @@ vendor/bin/symfony-standards check    # what CI runs
 
 | Part | Where | Purpose |
 |---|---|---|
-| Tool configs | `config/` (used via one-line project files) | php-cs-fixer (PER-CS 3.0 + `declare_strict_types`), PHPStan (level 6, Symfony/Doctrine/PHPUnit/deprecation extensions), Rector (PHP and framework sets from your installed versions) |
+| Tool configs | `config/` (used via one-line project files) | php-cs-fixer (PER-CS 3.0 + `declare_strict_types`, ordered imports, blank line before `return`, aligned PHPDoc), PHPStan (level 6, Symfony/Doctrine/PHPUnit/deprecation extensions), Rector (PHP and framework sets from your installed versions) |
 | `check` | `bin/symfony-standards` | `APP_SECRET` in `.env` must be empty (warning), `composer validate`/`audit`, `importmap:install` (fetches `assets/vendor/` early, names a missing network/jsDelivr as the cause), php-cs-fixer, PHPStan, Rector dry-run, `lint:container`/`yaml`/`twig`, `doctrine:schema:validate --skip-sync`, `importmap:audit`, PHPUnit (all test suites, also with a `defaultTestSuite`). Steps the project does not use (no Doctrine, no importmap, no tests) are skipped. |
 | Reusable workflow | `.github/workflows/symfony-ci.yml` | Runs `check`; after green checks a push to `develop`/`master` calls the beta/live deploy webhook. |
 | Deploy script | `templates/deploy/post-deploy.sh` | prod guard (stops unless Symfony boots `APP_ENV=prod` without debug), composer install, assets, fresh cache, migrations, project hook, worker restart, self-test |
@@ -115,7 +115,7 @@ Never use a self-hosted runner for a public repository: anyone could run code on
 
 ## Versioning
 
-Semver. Projects reference the workflow with a **pinned release tag** (`symfony-ci.yml@v1.3.0`), and Dependabot
+Semver. Projects reference the workflow with a **pinned release tag** (`symfony-ci.yml@v1.5.0`), and Dependabot
 (`package-ecosystem: github-actions` in `.github/dependabot.yml`, part of the templates: monthly, minor and patch
 grouped, no target-branch so pull requests go to the default branch `develop`) raises it by pull request.
 Major releases are ignored there on purpose — they can turn a green project red and need their own change.

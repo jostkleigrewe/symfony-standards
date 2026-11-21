@@ -4,6 +4,18 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-21
+
+### Added
+- `check`: new step `importmap-install` right after `composer-audit`, before `cs-fixer`, `cache-warmup` and `phpunit`. It runs `importmap:install`, so `assets/vendor/` (not versioned) exists before the cache warmup and the tests; when the download fails it says that the network or jsDelivr (`cdn.jsdelivr.net`) is most likely unreachable. Skipped without `importmap.php` or without the console command. Covered by `tests/importmap-install.sh`.
+- Deploy script: prod guard before anything changes. It asks Symfony's own `Dotenv::bootEnv()` (from `vendor/`, same logic as `symfony/runtime`: `.env.local.php`, `.env*` files in order, real environment variables first) for the effective `APP_ENV`/`APP_DEBUG` and stops unless they are `prod`/`0`. On the first deploy (no `vendor/`) the check runs right after `composer install`. `ALLOW_NON_PROD_ENV=1` in `deploy/deploy.env` turns the stop into a warning for intended exceptions. Covered by `tests/deploy-env.sh`. Background: on 2026-11-21 a beta and a live install ran with `APP_ENV=dev`/`APP_DEBUG=1`, `/_profiler/phpinfo` was public. Update `deploy/post-deploy.sh` in your projects (it stays identical to the template); a server whose `.env.local` lacks `APP_ENV=prod` while `.env` says `dev` now stops instead of deploying a dev app.
+- The self-test workflow runs every `tests/*.sh` and lints them with shellcheck.
+
+### Changed
+- php-cs-fixer, house style B: `blank_line_before_statement` (only `return`) and `phpdoc_align` (fixer defaults: vertical, spacing 1) on top of `@PER-CS3x0`. **Projects get a one-time format diff on update:** run `vendor/bin/symfony-standards fix`, commit the result as its own commit and add its hash to `.git-blame-ignore-revs` (`git config blame.ignoreRevsFile .git-blame-ignore-revs`; GitHub reads the file automatically), so `git blame` skips it.
+- Deploy script: a real `APP_ENV` environment variable now wins over `.env.local`, as it does in Symfony.
+- The `ci.yml` template references the reusable workflow at `@v1.5.0`.
+
 ## [1.4.0] - 2026-11-20
 
 ### Changed
@@ -58,7 +70,8 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - Templates: project tool configs, `ci.yml`, `deploy/post-deploy.sh`, `deploy/deploy.env`.
 - Workflow inputs `runs-on` (JSON) and `timeout-minutes`; on self-hosted runners `setup-php` runs in self-hosted mode and the database comes from `CI_DATABASE_*` instead of a service container.
 
-[Unreleased]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/jostkleigrewe/symfony-standards/compare/v1.2.0...v1.2.1
