@@ -121,7 +121,10 @@ grouped, no target-branch so pull requests go to the default branch `develop`) r
 Major releases are ignored there on purpose — they can turn a green project red and need their own change.
 That way a new package release reaches a project only through a pull request whose CI passed, never silently on the
 next run. Configs follow the Composer version. Each release updates the tag in `templates/.github/workflows/ci.yml`.
-A rule change that can turn a green project red is a major version. See [CHANGELOG.md](CHANGELOG.md).
+A rule change that needs hand-written code changes in projects is a major version. A pure formatting rule that
+`symfony-standards fix` applies automatically (such as house style B in 1.5.0) is a minor version: the Dependabot pull
+request turns red until one `fix` commit is added to it — put that commit into `.git-blame-ignore-revs`. The
+CHANGELOG marks such releases. See [CHANGELOG.md](CHANGELOG.md).
 
 The moving major tag `v1` still exists for projects that reference `@v1`; it is deprecated and no longer documented
 for new projects. Switch such projects to a pinned tag and add the Dependabot file (`init` creates it if missing).
